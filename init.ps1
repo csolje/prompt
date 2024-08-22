@@ -1,26 +1,34 @@
-    if ($psedition -eq 'Core') {
-        if (-not (Get-InstalledScript Install-RequiredModule)) {
-            try {
-                Install-Script Install-RequiredModule -Repository PSGallery -Force
-            } catch {
-                throw "Issue installed dependency: Install-RequiredModule script: $($_)"
-            }
-        }
-    } else {
-        if (-not (Get-Module Install-RequiredModule)) {
-            try {
-                Install-Module Install-RequiredModule -Repository PSGallery -Force
-            } catch {
-                throw "Issue installed dependency: Install-RequiredModule script: $($_)"
-            }
-        }
-    }
+param(
+    [switch]$NoK8s
+)
 
-    try {
-        Install-RequiredModule -RequiredModulesFile $PSScriptRoot\requiredmodules.psd1 -TrustRegisteredRepositories -Scope AllUsers -Quiet
-    } catch {
-        throw "Issue installing required modules: $($_)"
+if (-not ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole] "Administrator")) {
+    throw "This script needs to be run As Admin"
+}
+
+if ($PSEdition -eq 'Core') {
+    if (-not (Get-InstalledScript Install-RequiredModule)) {
+        try {
+            Install-Script Install-RequiredModule -Repository PSGallery -Force
+        } catch {
+            throw "Issue installed dependency: Install-RequiredModule script: $($_)"
+        }
     }
+} else {
+    if (-not (Get-Module Install-RequiredModule)) {
+        try {
+            Install-Module Install-RequiredModule -Repository PSGallery -Force
+        } catch {
+            throw "Issue installed dependency: Install-RequiredModule script: $($_)"
+        }
+    }
+}
+
+try {
+    Install-RequiredModule -RequiredModulesFile $PSScriptRoot\requiredmodules.psd1 -TrustRegisteredRepositories -Scope AllUsers -Quiet
+} catch {
+    throw "Issue installing required modules: $($_)"
+}
 
     # setup initial Secret vault, adjust the configuration as you want or need for security purposes
     try {
