@@ -11,14 +11,8 @@ $PSDefaultParameterValues = @{
     "Install-Module:Repository" = "PSGallery"
 }
 
-$ohMyPoshModule = Get-Module -Name oh-my-posh -ListAvailable | Select-Object -First 1
-if ($ohMyPoshModule.Version.Major -ge 7 -and $ohMyPoshModule.Version.Minor -ge 30) {
-    Import-Module oh-my-posh
-    $ohMyPoshConfig = "$PSScriptRoot\oh-my-config.json"
-    oh-my-posh --init --shell pwsh --config $ohMyPoshConfig | Invoke-Expression
-} else {
-    Write-Warning "oh-my-posh version should be 7.30.2 or higher"
-}
+$ohMyPoshConfig = "$PSScriptRoot\oh-my-config.json"
+oh-my-posh --init --shell pwsh --config $ohMyPoshConfig | Invoke-Expression
 
 if (Get-Module Terminal-Icons -ListAvailable) {
     Import-Module Terminal-Icons
