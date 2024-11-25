@@ -1,35 +1,67 @@
+#requires -Version 7.4
+#requires -Modules 'Microsoft.PowerShell.PSResourceGet'
+[CmdletBinding()]
 param(
     [switch]$NoK8s
 )
+$ErrorView = 'DetailedView'
 
-if (-not ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole] "Administrator")) {
+if (-not $IsMacOS -and -not ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole] "Administrator")) {
     throw "This script needs to be run As Admin"
 }
 
-if ($PSEdition -eq 'Core') {
-    if (-not (Get-InstalledScript Install-RequiredModule)) {
-        try {
-            Install-Script Install-RequiredModule -Repository PSGallery -Force
-        } catch {
-            throw "Issue installed dependency: Install-RequiredModule script: $($_)"
-        }
-    }
-} else {
-    if (-not (Get-Module Install-RequiredModule)) {
-        try {
-            Install-Module Install-RequiredModule -Repository PSGallery -Force
-        } catch {
-            throw "Issue installed dependency: Install-RequiredModule script: $($_)"
-        }
+# Expect you to be on PowerShell 7.4 or higher as this has Microsoft.PowerShell.PSResourceGet built-in now
+Set-PSResourceRepository -Name PSGallery -Trusted
+
+if (-not (Get-Module ModuleFast)) {
+    try {
+        iwr bit.ly/modulefast | iex
+    } catch {
+        throw "Issue installed dependency: ModuleFast: $($_)"
     }
 }
 
 try {
-    Install-RequiredModule -RequiredModulesFile $PSScriptRoot\requiredmodules.psd1 -TrustRegisteredRepositories -Scope CurrentUser -Quiet
+    Install-ModuleFast -Path $PSScriptRoot/requiredmodules.psd1 -Verbose
 } catch {
     throw "Issue installing required modules: $($_)"
 }
+if ($IsMacOS) {
+    #TODO install these from brew
+    # install PowerShell using package install from PS team
+    <#
+        #kubectl krew plugins
+        ctx
+        foreach
+        ns
+        sniff
+        status
+        stern
+        validate
+        status
+    #>
+    <# 
+        # bicep 
+        brew tap azure/bicep
+        brew install bicep
+        brew install jq
+        brew install helm
+        brew install git
 
+        # can't remember install but miniconda3 for python versions (use this with Azure CLI)
+        # create env using {conda env list}
+        # conda config --set ssl_verify ~/cacert.pem
+    #>
+    <#
+    # specific version of kubectl?
+    curl -LO "https://dl.k8s.io/release/v1.26.3/bin/darwin/arm64/kubectl"
+    ls -la
+    chmod +x ./kubectl
+    sudo mv ./kubectl /usr/local/bin/kubectl
+    sudo chown root: /usr/local/bin/kubectl
+    #>
+    
+}
 if (-not $IsMacOS) {
     <# Make sure Chocolatey is installed #>
     try {
@@ -77,13 +109,17 @@ try {
         } else {
             Write-Host 'Secret Store authentication already set to [None]'
         }
-        if (-not (Get-SecretVault -Name myCredentials)) {
+        if (-not (Get-SecretVault -Name myCredentials -ErrorAction SilentlyContinue)) {
             Register-SecretVault -Name myCredentials -ModuleName Microsoft.PowerShell.SecretStore -DefaultVault
         } else {
             Write-Warning 'Secret vault [myCredentials] already exists'
         }
 
-        Write-Host 'Vault [myCredentials] can be used to store credentials used in your local scripts. Use Set-Secret to add'
+        if (Get-SecretVault -Name myCredentials) {
+            Write-Host 'Vault [myCredentials] can be used to store credentials used in your local scripts. Use Set-Secret to add'
+        } else {
+            Write-Warning "Vault [myCredentials] was not created"
+        }
     }
 } catch {
     Write-Warning "Issue creating scripts vault: $($_)"
